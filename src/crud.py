@@ -48,3 +48,37 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 # def get_transactions(...)
 
 print("Funciones CRUD definidas.")
+
+# src/crud.py
+# ... (importaciones y funciones de User existentes arriba) ...
+
+# --- Funciones para Asset ---
+
+def get_asset_by_symbol(db: Session, symbol: str):
+    """Busca un activo por su símbolo."""
+    # Por ahora, busca globalmente. Más adelante, se podría filtrar por usuario.
+    return db.query(models.Asset).filter(models.Asset.symbol == symbol.upper()).first()
+
+def create_asset(db: Session, symbol: str, name: str, asset_type: models.AssetType):
+    """Crea un nuevo activo en la base de datos."""
+    # Convertir símbolo a mayúsculas por consistencia
+    symbol_upper = symbol.upper()
+
+    # Crear la instancia del modelo Asset
+    db_asset = models.Asset(
+        symbol=symbol_upper,
+        name=name,
+        asset_type=asset_type
+        # owner_id será añadido cuando implementemos la relación con User
+    )
+
+    # Añadir a la sesión y confirmar
+    db.add(db_asset)
+    db.commit()
+    db.refresh(db_asset) # Obtener el ID asignado
+    return db_asset
+
+# --- Funciones para Transaction (las añadiremos más adelante) ---
+# ...
+
+# Asegúrate de que la línea 'print("Funciones CRUD definidas.")' esté al final del archivo si la tenías.
