@@ -1,3 +1,4 @@
+# alembic/env.py
 import sys
 import os
 from logging.config import fileConfig
@@ -7,7 +8,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# <<< INICIO: Bloque añadido/modificado para encontrar los modelos >>>
+# --- Bloque añadido/modificado para encontrar los modelos ---
 # Añadir la carpeta RAÍZ del proyecto (un nivel arriba de alembic/) al sys.path
 # para que Python pueda encontrar el paquete 'src'
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -18,8 +19,7 @@ if project_dir not in sys.path:
 # y también importar los modelos para que SQLAlchemy los detecte
 from src.models import Base
 # import src.models # Opcional: Importar todo el módulo si tienes más cosas que detectar
-
-# <<< FIN: Bloque añadido/modificado >>>
+# --- Fin del bloque ---
 
 
 # this is the Alembic Config object, which provides
@@ -35,7 +35,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-# <<< MODIFICADO: Usar la Base importada >>>
+# --- Usar la Base importada ---
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -62,6 +62,8 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        # <<< AÑADIDO: Habilitar modo batch también para offline si se generan SQLs >>>
+        render_as_batch=True
     )
 
     with context.begin_transaction():
@@ -83,7 +85,10 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            # <<< AÑADIDO: Habilitar modo batch para operaciones online >>>
+            render_as_batch=True
         )
 
         with context.begin_transaction():

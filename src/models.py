@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enu
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from enum import Enum as PyEnum
-from .database import Base
+from .database import Base # RELATIVA
 
 class AssetType(PyEnum):
     STOCK = "STOCK"
@@ -52,5 +52,3 @@ class Transaction(Base):
     asset = relationship("Asset", back_populates="transactions")
     owner = relationship("User", back_populates="transactions")
     def __repr__(self): total = self.quantity * self.price_per_unit; return f"<Transaction(type='{self.transaction_type.name}', asset_id={self.asset_id}, qty={self.quantity}, price={self.price_per_unit}, total={total})>"
-
-# print("Modelos User, Asset y Transaction definidos.")

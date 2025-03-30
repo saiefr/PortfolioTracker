@@ -1,13 +1,13 @@
 # src/crud.py
 from sqlalchemy.orm import Session
-from sqlalchemy import func as sql_func # Para usar sum, etc.
+from sqlalchemy import func as sql_func
 import bcrypt
-from . import models # Relativa
+from . import models # RELATIVA
 from datetime import datetime
 from collections import defaultdict
 import math
-import yfinance as yf # Necesario para get_current_prices
-import pandas as pd # Necesario para yfinance
+import yfinance as yf
+import pandas as pd
 
 # --- Funciones para User ---
 def get_user_by_email(db: Session, email: str):
@@ -51,7 +51,7 @@ def get_transactions_by_asset(db: Session, asset_id: int, skip: int = 0, limit: 
 # --- Funciones de Lógica de Portafolio ---
 def get_user_positions(db: Session, user_id: int) -> dict[models.Asset, float]:
     """Calcula las posiciones actuales (cantidad neta) de cada activo para un usuario."""
-    print(f"\n--- Calculando posiciones para User ID: {user_id} ---")
+    # print(f"\n--- Calculando posiciones para User ID: {user_id} ---") # Comentado para limpieza
     transactions = db.query(models.Transaction)\
                      .filter(models.Transaction.owner_id == user_id)\
                      .order_by(models.Transaction.asset_id, models.Transaction.transaction_date)\
@@ -70,7 +70,7 @@ def get_user_positions(db: Session, user_id: int) -> dict[models.Asset, float]:
             if not math.isclose(quantity, 0, abs_tol=1e-9):
                 asset = asset_map.get(asset_id)
                 if asset: final_positions[asset] = quantity
-    print(f"Posiciones calculadas: {len(final_positions)} activos con holdings.")
+    # print(f"Posiciones calculadas: {len(final_positions)} activos con holdings.") # Comentado
     return final_positions
 
 # --- Funciones de Datos de Mercado ---
@@ -82,7 +82,6 @@ def get_current_prices(symbols: list[str]) -> dict[str, float]:
     try:
         data = yf.download(symbols, period="1d", progress=False)
         if data.empty: print("Advertencia: yfinance no devolvió datos."); return prices
-
         if isinstance(data.columns, pd.MultiIndex):
             price_col = 'Adj Close' if 'Adj Close' in data.columns.levels[0] else 'Close'
             if price_col in data.columns.levels[0]:
@@ -94,9 +93,6 @@ def get_current_prices(symbols: list[str]) -> dict[str, float]:
             else: print(f"Advertencia: No se encontró columna '{price_col}' para {symbols[0]}.")
         else: print("Advertencia: Formato inesperado de yfinance.")
     except Exception as e: print(f"Error obteniendo precios de yfinance: {e}")
-
     valid_prices = {symbol: float(price) for symbol, price in prices.items() if pd.notna(price)}
     print(f"Precios obtenidos: {len(valid_prices)} válidos.")
     return valid_prices
-
-# print("Funciones CRUD definidas.")
