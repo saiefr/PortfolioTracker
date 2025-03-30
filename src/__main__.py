@@ -1,10 +1,11 @@
 # src/__main__.py
-# --- Importaciones Relativas ---
-from .database import SessionLocal, engine
-from . import models
-from . import crud
+from .database import SessionLocal, engine # Relativa
+from . import models                     # Relativa
+from . import crud                       # Relativa
 from sqlalchemy.orm import Session
 from datetime import datetime
+import pandas as pd # Necesario para mostrar tabla
+import traceback   # Para mostrar errores detallados
 
 # --- Funciones de Interfaz de Usuario ---
 def register_new_user(db: Session):
@@ -25,10 +26,9 @@ def register_new_user(db: Session):
 
 def add_new_asset(db: Session):
     print("\n--- Añadir Nuevo Activo ---")
-    # ASUMIMOS UN SOLO USUARIO POR AHORA (ID=1) - ¡Mejorar esto con login!
-    USER_ID_TEMP = 1
+    USER_ID_TEMP = 1 # ASUNCIÓN TEMPORAL
     user = db.query(models.User).filter(models.User.id == USER_ID_TEMP).first()
-    if not user: print(f"Error: Usuario con ID {USER_ID_TEMP} no encontrado. Registra un usuario primero."); return
+    if not user: print(f"Error: Usuario con ID {USER_ID_TEMP} no encontrado."); return
 
     symbol = input("Símbolo del activo (ej. AAPL, BTC-USD): ").upper()
     name = input("Nombre del activo (ej. Apple Inc., Bitcoin): ")
@@ -42,7 +42,6 @@ def add_new_asset(db: Session):
             else: print("Opción inválida.")
         except ValueError: print("Entrada inválida. Introduce un número.")
 
-    # Verificar si ya existe PARA ESTE USUARIO
     existing_asset = crud.get_asset_by_symbol(db, symbol=symbol, owner_id=USER_ID_TEMP)
     if existing_asset: print(f"Advertencia: Ya tienes registrado el activo '{symbol}'."); return
 
@@ -84,7 +83,7 @@ def add_new_transaction(db: Session):
     while True:
         try:
             price_str = input("Precio por unidad: "); price_per_unit = float(price_str)
-            if price_per_unit < 0: raise ValueError("Precio no puede ser negativo.") # Permitir 0?
+            if price_per_unit < 0: raise ValueError("Precio no puede ser negativo.")
             break
         except ValueError as e: print(f"Entrada inválida para precio: {e}")
     while True:
@@ -103,11 +102,63 @@ def add_new_transaction(db: Session):
         print(f"¡Transacción registrada exitosamente con ID: {new_transaction.id}!")
     except Exception as e: print(f"Ocurrió un error al registrar transacción: {e}"); db.rollback()
 
+def show_portfolio(db: Session):
+    """Calcula y muestra las posiciones actuales y su valoración."""
+    print("\n--- Ver Portafolio ---")
+    USER_ID_TEMP = 1 # ASUNCIÓN TEMPORAL
+    user = db.query(models.User).filter(models.User.id == USER_ID_TEMP).first()
+    if not user: print(f"Error: Usuario con ID {USER_ID_TEMP} no encontrado."); return
+
+    try:
+        positions = crud.get_user_positions(db, user_id=USER_ID_TEMP)
+        if not positions: print("No tienes posiciones abiertas."); return
+
+        symbols = [asset.symbol for asset in positions.keys()]
+        current_prices = crud.get_current_prices(symbols)
+
+        portfolio_data = []
+        total_portfolio_value = 0.0
+
+        print("\n--- Resumen del Portafolio ---")
+        for asset, quantity in positions.items():
+            current_price = current_prices.get(asset.symbol)
+            market_value_num = None # Para cálculo total
+            if current_price is not None:
+                market_value_num = quantity * current_price
+                total_portfolio_value += market_value_num
+                market_value_str = f'{market_value_num:,.2f}'
+                current_price_str = f'{current_price:,.2f}'
+            else:
+                market_value_str = "N/A"
+                current_price_str = "N/A"
+                print(f"Advertencia: No se pudo obtener el precio actual para {asset.symbol}")
+
+            portfolio_data.append({
+                "Símbolo": asset.symbol,
+                "Nombre": asset.name,
+                "Cantidad": quantity,
+                "Precio Actual": current_price_str,
+                "Valor Mercado": market_value_str
+            })
+
+        if portfolio_data:
+            portfolio_df = pd.DataFrame(portfolio_data)
+            # Formatear columnas numéricas para mostrar
+            portfolio_df['Cantidad'] = portfolio_df['Cantidad'].map('{:,.8f}'.format)
+            # Las otras ya son strings o N/A
+            print(portfolio_df.to_string(index=False))
+            print("-" * 70) # Línea separadora más ancha
+            print(f"Valor Total Estimado del Portafolio: {total_portfolio_value:,.2f}")
+        else:
+            print("No se pudieron valorar las posiciones.")
+
+    except Exception as e:
+        print(f"Ocurrió un error al calcular el portafolio: {e}")
+        traceback.print_exc()
+
+
 # --- Flujo Principal ---
 if __name__ == "__main__":
-    # print("Creando tablas si no existen...") # Comentado, usar Alembic
-    # models.Base.metadata.create_all(bind=engine)
-
     db = SessionLocal()
     try:
         while True:
@@ -115,13 +166,15 @@ if __name__ == "__main__":
             print("1. Registrar Nuevo Usuario")
             print("2. Añadir Nuevo Activo")
             print("3. Registrar Nueva Transacción")
-            print("4. Salir")
+            print("4. Ver Portafolio")
+            print("5. Salir")
             choice = input("Elige una opción: ")
 
             if choice == '1': register_new_user(db)
             elif choice == '2': add_new_asset(db)
             elif choice == '3': add_new_transaction(db)
-            elif choice == '4': print("Saliendo..."); break
+            elif choice == '4': show_portfolio(db)
+            elif choice == '5': print("Saliendo..."); break
             else: print("Opción no válida.")
     finally:
         print("Cerrando conexión a la base de datos.")
