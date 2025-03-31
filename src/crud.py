@@ -131,7 +131,7 @@ def get_transaction(db: Session, transaction_id: int, owner_id: int):
         models.Transaction.owner_id == owner_id
     ).first()
 
-def get_transactions_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
+def get_transactions_for_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.Transaction)\
              .filter(models.Transaction.owner_id == user_id)\
              .order_by(desc(models.Transaction.transaction_date), desc(models.Transaction.id))\
