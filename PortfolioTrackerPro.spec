@@ -5,7 +5,7 @@ a = Analysis(
     ['run_tracker.py'],
     pathex=[],
     binaries=[],
-    datas=[('portfolio.db', '.')],
+    datas=[('portfolio.db', '.'), ('myicon.ico', '.')],
     hiddenimports=['passlib.handlers.bcrypt'],
     hookspath=[],
     hooksconfig={},

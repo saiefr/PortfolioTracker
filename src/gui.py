@@ -8,6 +8,7 @@ from . import models
 from .database import SessionLocal
 import logging
 import sys
+import os # <--- Añadido import os
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation, DivisionByZero
 from datetime import datetime
 import re # Importar re para validación básica de email
@@ -18,6 +19,31 @@ ctk.set_default_color_theme("blue")
 
 # --- Validación básica de Email (expresión regular simple) ---
 EMAIL_REGEX = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+
+# --- Función para obtener la ruta a los recursos (como el icono) ---
+def resource_path(relative_path):
+    """ Obtiene la ruta absoluta al recurso, funciona para desarrollo y para PyInstaller """
+    try:
+        # PyInstaller crea una carpeta temporal y guarda la ruta en _MEIPASS
+        # Cuando se ejecuta como --onedir, _MEIPASS no existe, pero sys.executable está en el dir correcto
+        # Cuando se ejecuta como --onefile, _MEIPASS apunta al dir temporal
+        if hasattr(sys, '_MEIPASS'):
+            base_path = sys._MEIPASS
+        else:
+            # Si no es PyInstaller o es --onedir, usa la ruta del ejecutable o script
+            base_path = os.path.abspath(os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__))
+            # Si estamos en desarrollo (__file__ está en src), subimos un nivel
+            if not getattr(sys, 'frozen', False) and os.path.basename(base_path) == 'src':
+                 base_path = os.path.abspath(os.path.join(base_path, ".."))
+
+    except Exception:
+        # Fallback por si algo falla
+        base_path = os.path.abspath(".")
+
+    path_to_resource = os.path.join(base_path, relative_path)
+    # print(f"Calculated resource path for '{relative_path}': {path_to_resource}") # Para depuración
+    return path_to_resource
+
 
 class PortfolioApp(ctk.CTk):
     def __init__(self, db_session):
@@ -31,6 +57,19 @@ class PortfolioApp(ctk.CTk):
         self.title("Portfolio Tracker Pro")
         self.geometry("1100x700")
         self.minsize(800, 500)
+
+        # --- Establecer el icono de la ventana ---
+        try:
+            # Asume que tu icono se llama 'myicon.ico' y PyInstaller lo colocará en la raíz
+            icon_path = resource_path("myicon.ico")
+            if os.path.exists(icon_path):
+                 self.iconbitmap(icon_path)
+                 logging.info(f"Icono de ventana establecido desde: {icon_path}")
+            else:
+                 logging.warning(f"Archivo de icono no encontrado en: {icon_path}")
+        except Exception as e:
+            # Tkinter puede lanzar TclError si el formato no es correcto o no se encuentra
+            logging.warning(f"No se pudo establecer el icono de la ventana: {e}")
 
         # --- Configurar Grid Layout (1x2) ---
         self.grid_columnconfigure(1, weight=1)
@@ -843,7 +882,7 @@ class PortfolioApp(ctk.CTk):
         if confirm.get() == "Eliminar":
             try:
                 logging.info(f"Intentando eliminar transacción ID: {self.selected_transaction_id}")
-                # ### CORRECCIÓN AQUÍ ###: Cambiar user_id por owner_id
+                # Llamar a la función CRUD correspondiente con owner_id
                 success = crud.delete_transaction(self.db, transaction_id=self.selected_transaction_id, owner_id=self.current_user.id)
 
                 if success:
@@ -899,7 +938,7 @@ class PortfolioApp(ctk.CTk):
         username_entry.bind("<Return>", attempt_login_callback)
         password_entry.bind("<Return>", attempt_login_callback)
 
-        # ### MODIFICADO ###: Botón de Registro funcional
+        # Botón de Registro funcional
         register_button = ctk.CTkButton(login_container, text="Registrar", command=self.open_register_dialog, width=150, fg_color="gray")
         register_button.grid(row=4, column=0, columnspan=2, padx=10, pady=10) # Span 2
 
@@ -971,7 +1010,7 @@ class PortfolioApp(ctk.CTk):
             password_entry.delete(0, "end")
             username_entry.focus()
 
-    # ### NUEVO ###: Diálogo de Registro
+    # --- Diálogo de Registro ---
     def open_register_dialog(self):
         dialog = ctk.CTkToplevel(self)
         dialog.title("Registro de Nuevo Usuario")
@@ -1018,7 +1057,7 @@ class PortfolioApp(ctk.CTk):
 
         reg_username_entry.focus()
 
-    # ### NUEVO ###: Lógica para procesar el registro
+    # --- Lógica para procesar el registro ---
     def _process_registration(self, dialog, username_entry, email_entry, password_entry, confirm_password_entry):
         username = username_entry.get().strip()
         email = email_entry.get().strip()
