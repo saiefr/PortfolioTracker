@@ -839,8 +839,9 @@ class PortfolioApp(ctk.CTk):
         if confirm.get() == "Eliminar":
             try:
                 logging.info(f"Intentando eliminar transacción ID: {self.selected_transaction_id}")
-                # Llamar a la función CRUD para eliminar
-                success = crud.delete_transaction(self.db, transaction_id=self.selected_transaction_id, user_id=self.current_user.id)
+                # ### CORRECCIÓN AQUÍ ###: Cambiar user_id por owner_id
+                success = crud.delete_transaction(self.db, transaction_id=self.selected_transaction_id, owner_id=self.current_user.id)
+
                 if success:
                     logging.info(f"Transacción ID: {self.selected_transaction_id} eliminada.")
                     CTkMessagebox(title="Éxito", message="Transacción eliminada correctamente.", icon="check")
