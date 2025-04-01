@@ -10,10 +10,14 @@ import logging
 import sys
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation, DivisionByZero
 from datetime import datetime
+import re # Importar re para validación básica de email
 
 # --- Configuración de Apariencia ---
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
+
+# --- Validación básica de Email (expresión regular simple) ---
+EMAIL_REGEX = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
 
 class PortfolioApp(ctk.CTk):
     def __init__(self, db_session):
@@ -876,31 +880,28 @@ class PortfolioApp(ctk.CTk):
         self.login_frame.grid_columnconfigure(0, weight=1)
 
         login_label = ctk.CTkLabel(login_container, text="Iniciar Sesión", font=ctk.CTkFont(size=20, weight="bold"))
-        login_label.grid(row=0, column=0, padx=10, pady=(0, 15))
+        login_label.grid(row=0, column=0, columnspan=2, padx=10, pady=(0, 15)) # Span 2
 
         username_entry = ctk.CTkEntry(login_container, placeholder_text="Nombre de usuario", width=250)
-        username_entry.grid(row=1, column=0, padx=10, pady=10)
+        username_entry.grid(row=1, column=0, columnspan=2, padx=10, pady=10) # Span 2
 
         password_entry = ctk.CTkEntry(login_container, placeholder_text="Contraseña", show="*", width=250)
-        password_entry.grid(row=2, column=0, padx=10, pady=10)
+        password_entry.grid(row=2, column=0, columnspan=2, padx=10, pady=10) # Span 2
 
         # Función callback para el botón y la tecla Enter
         def attempt_login_callback(event=None): # Aceptar argumento 'event' opcional para el bind
             self._attempt_login(username_entry, password_entry)
 
         login_button = ctk.CTkButton(login_container, text="Login", command=attempt_login_callback, width=250)
-        login_button.grid(row=3, column=0, padx=10, pady=(20, 10))
+        login_button.grid(row=3, column=0, columnspan=2, padx=10, pady=(20, 10)) # Span 2
 
         # Vincular tecla Enter en los campos de entrada al login
         username_entry.bind("<Return>", attempt_login_callback)
         password_entry.bind("<Return>", attempt_login_callback)
 
-        # Botón informativo para registro (funcionalidad no implementada en GUI)
-        def show_register_info():
-            CTkMessagebox(title="Registro", message="La función de registro aún no está implementada en la GUI.\nPor favor, usa la versión de consola o script para registrar nuevos usuarios.", icon="info")
-
-        register_button = ctk.CTkButton(login_container, text="Registrar (Info)", command=show_register_info, width=150, fg_color="gray")
-        register_button.grid(row=4, column=0, padx=10, pady=10)
+        # ### MODIFICADO ###: Botón de Registro funcional
+        register_button = ctk.CTkButton(login_container, text="Registrar", command=self.open_register_dialog, width=150, fg_color="gray")
+        register_button.grid(row=4, column=0, columnspan=2, padx=10, pady=10) # Span 2
 
         username_entry.focus() # Poner foco en el campo de usuario
 
@@ -969,6 +970,108 @@ class PortfolioApp(ctk.CTk):
             # Limpiar solo contraseña y mantener foco en usuario
             password_entry.delete(0, "end")
             username_entry.focus()
+
+    # ### NUEVO ###: Diálogo de Registro
+    def open_register_dialog(self):
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Registro de Nuevo Usuario")
+        dialog.geometry("400x400") # Un poco más alto para la confirmación de contraseña
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        main_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        main_frame.pack(expand=True, fill="both", padx=20, pady=20)
+        main_frame.grid_columnconfigure(1, weight=1)
+
+        row_num = 0
+
+        # --- Widgets de Entrada para Registro ---
+        ctk.CTkLabel(main_frame, text="Nombre de Usuario:").grid(row=row_num, column=0, padx=5, pady=8, sticky="w")
+        reg_username_entry = ctk.CTkEntry(main_frame, placeholder_text="Elige un nombre de usuario")
+        reg_username_entry.grid(row=row_num, column=1, padx=5, pady=8, sticky="ew"); row_num += 1
+
+        ctk.CTkLabel(main_frame, text="Email:").grid(row=row_num, column=0, padx=5, pady=8, sticky="w")
+        reg_email_entry = ctk.CTkEntry(main_frame, placeholder_text="tu.correo@ejemplo.com")
+        reg_email_entry.grid(row=row_num, column=1, padx=5, pady=8, sticky="ew"); row_num += 1
+
+        ctk.CTkLabel(main_frame, text="Contraseña:").grid(row=row_num, column=0, padx=5, pady=8, sticky="w")
+        reg_password_entry = ctk.CTkEntry(main_frame, placeholder_text="Mínimo 6 caracteres", show="*")
+        reg_password_entry.grid(row=row_num, column=1, padx=5, pady=8, sticky="ew"); row_num += 1
+
+        ctk.CTkLabel(main_frame, text="Confirmar Contraseña:").grid(row=row_num, column=0, padx=5, pady=8, sticky="w")
+        reg_confirm_password_entry = ctk.CTkEntry(main_frame, show="*")
+        reg_confirm_password_entry.grid(row=row_num, column=1, padx=5, pady=8, sticky="ew"); row_num += 1
+
+        # --- Botones Registrar/Cancelar ---
+        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        button_frame.grid(row=row_num, column=0, columnspan=2, pady=(25, 0)) # Más espacio antes de botones
+        button_frame.grid_columnconfigure((0, 1), weight=1)
+
+        register_button = ctk.CTkButton(button_frame, text="Registrar", width=100,
+                                        command=lambda: self._process_registration(dialog, reg_username_entry, reg_email_entry,
+                                                                                   reg_password_entry, reg_confirm_password_entry))
+        register_button.grid(row=0, column=0, padx=10)
+
+        cancel_button = ctk.CTkButton(button_frame, text="Cancelar", width=100, fg_color="gray", command=dialog.destroy)
+        cancel_button.grid(row=0, column=1, padx=10)
+
+        reg_username_entry.focus()
+
+    # ### NUEVO ###: Lógica para procesar el registro
+    def _process_registration(self, dialog, username_entry, email_entry, password_entry, confirm_password_entry):
+        username = username_entry.get().strip()
+        email = email_entry.get().strip()
+        password = password_entry.get() # No hacer strip a la contraseña
+        confirm_password = confirm_password_entry.get()
+
+        # --- Validaciones ---
+        if not all([username, email, password, confirm_password]):
+            CTkMessagebox(title="Error de Validación", message="Todos los campos son obligatorios.", icon="warning")
+            return
+
+        if not re.match(EMAIL_REGEX, email):
+            CTkMessagebox(title="Error de Validación", message="El formato del email no es válido.", icon="warning")
+            return
+
+        # Validación de contraseña (ejemplo: mínimo 6 caracteres)
+        if len(password) < 6:
+             CTkMessagebox(title="Error de Validación", message="La contraseña debe tener al menos 6 caracteres.", icon="warning")
+             return
+
+        if password != confirm_password:
+            CTkMessagebox(title="Error de Validación", message="Las contraseñas no coinciden.", icon="warning")
+            # Limpiar campos de contraseña para reintentar
+            password_entry.delete(0, "end")
+            confirm_password_entry.delete(0, "end")
+            password_entry.focus()
+            return
+
+        # --- Intentar Crear Usuario ---
+        try:
+            logging.info(f"Intentando registrar nuevo usuario: {username}, {email}")
+            new_user = crud.create_user(db=self.db, username=username, email=email, password=password)
+
+            if new_user:
+                logging.info(f"Usuario '{username}' registrado exitosamente.")
+                CTkMessagebox(title="Registro Exitoso", message=f"Usuario '{username}' registrado correctamente.\nAhora puedes iniciar sesión.", icon="check")
+                dialog.destroy() # Cerrar diálogo de registro
+            else:
+                # Esto no debería ocurrir si create_user no lanza excepción
+                logging.error("crud.create_user retornó None/Falsy sin lanzar excepción.")
+                CTkMessagebox(title="Error Interno", message="Ocurrió un error inesperado durante el registro.", icon="cancel")
+
+        except ValueError as ve: # Capturar errores de duplicados desde crud.create_user
+            logging.warning(f"Error al registrar usuario '{username}': {ve}")
+            CTkMessagebox(title="Error de Registro", message=str(ve), icon="cancel")
+            # Podríamos querer limpiar solo el campo que dio error (username o email)
+            if "nombre de usuario" in str(ve).lower():
+                username_entry.focus()
+            elif "email" in str(ve).lower():
+                email_entry.focus()
+        except Exception as e: # Capturar otros errores inesperados
+            logging.error(f"Error inesperado durante el registro de '{username}': {e}", exc_info=True)
+            CTkMessagebox(title="Error Inesperado", message=f"Ocurrió un error inesperado:\n{e}", icon="cancel")
 
 
 # --- Punto de Entrada para la GUI ---
