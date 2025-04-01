@@ -107,7 +107,6 @@ class PortfolioApp(ctk.CTk):
     def toggle_login_logout(self):
         if self.current_user:
             # Si hay usuario logueado, mostrar confirmación de logout
-            # CORREGIDO: Eliminado parent=self
             confirm = CTkMessagebox(title="Confirmar Logout", message="¿Estás seguro de que quieres cerrar sesión?",
                                     icon="question", option_1="Cancelar", option_2="Sí")
             if confirm.get() == "Sí":
@@ -313,15 +312,13 @@ class PortfolioApp(ctk.CTk):
             # --- Preparar Datos para la Tabla ---
             headers = ["ID", "Fecha", "Tipo", "Símbolo", "Cantidad", "Precio", "Coste Total", "Comisión", "Notas"]
             table_data = [headers]
-            # Quantizers para formateo consistente (aunque rstrip quita ceros finales)
-            # qty_quantizer = Decimal('0.00000001'); price_quantizer = Decimal('0.0001'); value_quantizer = Decimal('0.01')
 
             for tx in transactions:
                 # Calcular coste total incluyendo comisiones
                 total_cost = (tx.quantity * tx.price_per_unit)
                 if tx.fees is not None:
                     if tx.transaction_type == models.TransactionType.BUY: total_cost += tx.fees
-                    elif tx.transaction_type == models.TransactionType.SELL: total_cost -= tx.fees # Ojo: Coste total aquí es más bien "Valor Neto" para ventas
+                    elif tx.transaction_type == models.TransactionType.SELL: total_cost -= tx.fees
 
                 # Formatear datos para la fila
                 tx_id_str = str(tx.id)
@@ -331,13 +328,10 @@ class PortfolioApp(ctk.CTk):
 
                 # Formateo de números decimales
                 qty_decimals, price_decimals, value_decimals = 8, 4, 2
-                quantity_str = f"{tx.quantity:.{qty_decimals}f}" if tx.quantity is not None else "N/A"
-                if quantity_str != "N/A": quantity_str = quantity_str.rstrip('0').rstrip('.') # Quitar ceros y punto decimal innecesarios
-                price_str = f"{tx.price_per_unit:.{price_decimals}f}" if tx.price_per_unit is not None else "N/A"
-                if price_str != "N/A": price_str = price_str.rstrip('0').rstrip('.')
-                total_cost_str = f"{total_cost:,.{value_decimals}f}" if total_cost is not None else "N/A" # Usar separador de miles
-                commission_str = f"{tx.fees:.{value_decimals}f}" if tx.fees is not None else "N/A"
-                if commission_str != "N/A": commission_str = commission_str.rstrip('0').rstrip('.')
+                quantity_str = f"{tx.quantity:.{qty_decimals}f}".rstrip('0').rstrip('.') if tx.quantity is not None else "N/A"
+                price_str = f"{tx.price_per_unit:.{price_decimals}f}".rstrip('0').rstrip('.') if tx.price_per_unit is not None else "N/A"
+                total_cost_str = f"{total_cost:,.{value_decimals}f}" if total_cost is not None else "N/A"
+                commission_str = f"{tx.fees:.{value_decimals}f}".rstrip('0').rstrip('.') if tx.fees is not None else "N/A"
                 notes_str = tx.notes if tx.notes else ""
 
                 table_data.append([tx_id_str, timestamp_str, type_str, symbol_str, quantity_str, price_str, total_cost_str, commission_str, notes_str])
@@ -500,7 +494,6 @@ class PortfolioApp(ctk.CTk):
         # --- Validación de Campos Obligatorios ---
         if not all([symbol, tx_type_str, quantity_str, price_str, date_str, fees_str]):
             logging.warning("Validación fallida: Campos obligatorios.")
-            # CORREGIDO: Eliminado parent=dialog
             CTkMessagebox(title="Error de Validación", message="Todos los campos excepto Notas son obligatorios.", icon="warning")
             return
 
@@ -509,8 +502,6 @@ class PortfolioApp(ctk.CTk):
         asset = crud.get_asset_by_symbol(self.db, symbol=symbol, owner_id=self.current_user.id)
         if not asset:
             logging.warning(f"Validación fallida: Activo '{symbol}' no encontrado.")
-            # Preguntar si desea crearlo (opcional, por ahora solo error)
-            # CORREGIDO: Eliminado parent=dialog
             CTkMessagebox(title="Error de Validación", message=f"El activo con símbolo '{symbol}' no existe en la base de datos para este usuario.\n\nPor favor, crea el activo primero (funcionalidad pendiente) o verifica el símbolo.", icon="cancel")
             return
         asset_id = asset.id
@@ -524,7 +515,6 @@ class PortfolioApp(ctk.CTk):
             logging.info(f"Tipo validado: {tx_type_enum.name}")
         except ValueError as e:
              logging.warning(f"Validación fallida: Tipo - {e}")
-             # CORREGIDO: Eliminado parent=dialog
              CTkMessagebox(title="Error de Validación", message=str(e), icon="warning")
              return
 
@@ -534,12 +524,10 @@ class PortfolioApp(ctk.CTk):
             if quantity_dec <= crud.ZERO_TOLERANCE: raise ValueError("La cantidad debe ser mayor que cero.")
         except InvalidOperation:
             logging.warning("Validación fallida: Cantidad - InvalidOperation")
-            # CORREGIDO: Eliminado parent=dialog
             CTkMessagebox(title="Error de Validación", message="Valor inválido para Cantidad (debe ser numérico).", icon="warning")
             return
         except ValueError as e: # Captura el "La cantidad debe ser > 0"
             logging.warning(f"Validación fallida: Cantidad - {e}")
-            # CORREGIDO: Eliminado parent=dialog
             CTkMessagebox(title="Error de Validación", message=str(e), icon="warning")
             return
 
@@ -549,12 +537,10 @@ class PortfolioApp(ctk.CTk):
             if price_dec < 0: raise ValueError("El precio no puede ser negativo.")
         except InvalidOperation:
             logging.warning("Validación fallida: Precio - InvalidOperation")
-            # CORREGIDO: Eliminado parent=dialog
             CTkMessagebox(title="Error de Validación", message="Valor inválido para Precio Unitario (debe ser numérico).", icon="warning")
             return
         except ValueError as e: # Captura el "El precio no puede ser negativo"
             logging.warning(f"Validación fallida: Precio - {e}")
-            # CORREGIDO: Eliminado parent=dialog
             CTkMessagebox(title="Error de Validación", message=str(e), icon="warning")
             return
 
@@ -564,12 +550,10 @@ class PortfolioApp(ctk.CTk):
             if fees_dec < 0: raise ValueError("La comisión no puede ser negativa.")
         except InvalidOperation:
             logging.warning("Validación fallida: Comisión - InvalidOperation")
-            # CORREGIDO: Eliminado parent=dialog
             CTkMessagebox(title="Error de Validación", message="Valor inválido para Comisión (debe ser numérico).", icon="warning")
             return
         except ValueError as e: # Captura el "La comisión no puede ser negativa"
             logging.warning(f"Validación fallida: Comisión - {e}")
-            # CORREGIDO: Eliminado parent=dialog
             CTkMessagebox(title="Error de Validación", message=str(e), icon="warning")
             return
 
@@ -587,7 +571,6 @@ class PortfolioApp(ctk.CTk):
         if date_obj is None:
             # Si ningún formato funcionó
             logging.warning("Validación fallida: Fecha - Formato inválido")
-            # CORREGIDO: Eliminado parent=dialog
             CTkMessagebox(title="Error de Validación", message=f"Formato de fecha inválido. Usa YYYY-MM-DD HH:MM o YYYY-MM-DD.", icon="warning")
             return
         logging.info(f"Fecha validada: {date_obj}")
@@ -608,7 +591,6 @@ class PortfolioApp(ctk.CTk):
             )
             if new_transaction:
                  logging.info(f"--- crud.create_transaction retornó: ID {new_transaction.id} ---")
-                 # CORREGIDO: Eliminado parent=self
                  CTkMessagebox(title="Éxito", message="Transacción añadida correctamente.", icon="check") # Mensaje en ventana principal
                  dialog.destroy() # Cerrar el diálogo
                  self.update_transactions_frame() # Actualizar tabla de transacciones
@@ -616,42 +598,240 @@ class PortfolioApp(ctk.CTk):
             else:
                  # Esto no debería ocurrir si create_transaction no lanza excepción pero no retorna objeto
                  logging.error("--- crud.create_transaction retornó None o Falsy ---")
-                 # CORREGIDO: Eliminado parent=dialog
                  CTkMessagebox(title="Error", message="La función CRUD no retornó una transacción válida.", icon="cancel")
 
         except ValueError as ve: # Errores de validación desde CRUD (aunque la mayoría se validan aquí)
             logging.error(f"Error de valor al crear transacción: {ve}")
-            # CORREGIDO: Eliminado parent=dialog
             CTkMessagebox(title="Error al Guardar", message=f"Error: {ve}", icon="cancel")
         except Exception as e: # Otros errores inesperados (ej. DB)
             logging.error(f"Error inesperado al crear transacción: {e}", exc_info=True)
-            # CORREGIDO: Eliminado parent=dialog
             CTkMessagebox(title="Error Inesperado", message=f"Ocurrió un error inesperado al guardar:\n{e}", icon="cancel")
         logging.info("--- Fin _save_new_transaction ---")
 
-
+    # --- Diálogo para editar transacción (con corrección de tipo) ---
     def edit_transaction_dialog(self):
-        # Abre diálogo para editar la transacción seleccionada (PENDIENTE)
+        # Abre una ventana Toplevel para editar una transacción existente
         if not self.current_user or self.selected_transaction_id is None:
-            # CORREGIDO: Eliminado parent=self
             CTkMessagebox(title="Aviso", message="Por favor, selecciona una transacción de la tabla para editar.", icon="warning")
             return
-        # --- Lógica para cargar datos de self.selected_transaction_id y mostrar diálogo similar a add ---
-        # CORREGIDO: Eliminado parent=self
-        CTkMessagebox(title="Info", message=f"Función 'Editar Transacción' (ID: {self.selected_transaction_id}) aún no implementada.", icon="info")
-        # Aquí iría la creación de un CTkToplevel similar a add_transaction_dialog,
-        # pero pre-cargado con los datos de la transacción seleccionada (obtenida con crud.get_transaction)
-        # y el botón "Guardar" llamaría a una función _save_edited_transaction que usaría crud.update_transaction.
+
+        logging.info(f"Iniciando edición para transacción ID: {self.selected_transaction_id}")
+        # Obtener los datos actuales de la transacción
+        transaction = crud.get_transaction(self.db, transaction_id=self.selected_transaction_id, owner_id=self.current_user.id)
+
+        if not transaction:
+            logging.error(f"No se encontró la transacción con ID {self.selected_transaction_id} para editar.")
+            CTkMessagebox(title="Error", message="No se encontró la transacción seleccionada. Puede haber sido eliminada.", icon="cancel")
+            self.selected_transaction_id = None # Resetear selección
+            if hasattr(self, 'edit_transaction_button'): self.edit_transaction_button.configure(state="disabled")
+            if hasattr(self, 'delete_transaction_button'): self.delete_transaction_button.configure(state="disabled")
+            return
+
+        # Crear el diálogo
+        dialog = ctk.CTkToplevel(self)
+        dialog.title(f"Editar Transacción (ID: {transaction.id})")
+        dialog.geometry("450x450")
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        main_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        main_frame.pack(expand=True, fill="both", padx=20, pady=20)
+        main_frame.grid_columnconfigure(1, weight=1)
+
+        row_num = 0
+
+        # --- Widgets de Entrada (pre-rellenados) ---
+        ctk.CTkLabel(main_frame, text="Símbolo:").grid(row=row_num, column=0, padx=5, pady=8, sticky="w")
+        # Símbolo es de solo lectura para evitar cambiar el asset_id fácilmente
+        symbol_label = ctk.CTkLabel(main_frame, text=transaction.asset.symbol, font=ctk.CTkFont(weight="bold"))
+        symbol_label.grid(row=row_num, column=1, padx=5, pady=8, sticky="w"); row_num += 1
+
+        ctk.CTkLabel(main_frame, text="Tipo:").grid(row=row_num, column=0, padx=5, pady=8, sticky="w")
+        # Usar "Compra"/"Venta" consistentemente
+        type_combo = ctk.CTkComboBox(main_frame, values=["Compra", "Venta"], state="readonly")
+        # Mapear el enum al string correcto para el ComboBox
+        current_type_str = "Compra" if transaction.transaction_type == models.TransactionType.BUY else "Venta"
+        type_combo.set(current_type_str) # Establecer valor actual ("Compra" o "Venta")
+        type_combo.grid(row=row_num, column=1, padx=5, pady=8, sticky="ew"); row_num += 1
+
+        ctk.CTkLabel(main_frame, text="Cantidad:").grid(row=row_num, column=0, padx=5, pady=8, sticky="w")
+        quantity_entry = ctk.CTkEntry(main_frame)
+        # Formatear Decimal a string para el Entry
+        quantity_str = f"{transaction.quantity:.8f}".rstrip('0').rstrip('.') if transaction.quantity is not None else ""
+        quantity_entry.insert(0, quantity_str)
+        quantity_entry.grid(row=row_num, column=1, padx=5, pady=8, sticky="ew"); row_num += 1
+
+        ctk.CTkLabel(main_frame, text="Precio Unitario:").grid(row=row_num, column=0, padx=5, pady=8, sticky="w")
+        price_entry = ctk.CTkEntry(main_frame)
+        # Formatear Decimal a string
+        price_str = f"{transaction.price_per_unit:.4f}".rstrip('0').rstrip('.') if transaction.price_per_unit is not None else ""
+        price_entry.insert(0, price_str)
+        price_entry.grid(row=row_num, column=1, padx=5, pady=8, sticky="ew"); row_num += 1
+
+        ctk.CTkLabel(main_frame, text="Fecha (YYYY-MM-DD HH:MM):").grid(row=row_num, column=0, padx=5, pady=8, sticky="w")
+        date_entry = ctk.CTkEntry(main_frame)
+        # Formatear datetime a string
+        date_str = transaction.transaction_date.strftime('%Y-%m-%d %H:%M') if transaction.transaction_date else ""
+        date_entry.insert(0, date_str)
+        date_entry.grid(row=row_num, column=1, padx=5, pady=8, sticky="ew"); row_num += 1
+
+        ctk.CTkLabel(main_frame, text="Comisión:").grid(row=row_num, column=0, padx=5, pady=8, sticky="w")
+        fees_entry = ctk.CTkEntry(main_frame)
+        # Formatear Decimal a string
+        fees_str = f"{transaction.fees:.2f}".rstrip('0').rstrip('.') if transaction.fees is not None else "0"
+        fees_entry.insert(0, fees_str)
+        fees_entry.grid(row=row_num, column=1, padx=5, pady=8, sticky="ew"); row_num += 1
+
+        ctk.CTkLabel(main_frame, text="Notas (Opcional):").grid(row=row_num, column=0, padx=5, pady=8, sticky="w")
+        notes_entry = ctk.CTkEntry(main_frame)
+        notes_entry.insert(0, transaction.notes if transaction.notes else "") # Insertar notas actuales
+        notes_entry.grid(row=row_num, column=1, padx=5, pady=8, sticky="ew"); row_num += 1
+
+        # --- Botones Guardar/Cancelar ---
+        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        button_frame.grid(row=row_num, column=0, columnspan=2, pady=(15, 0))
+        button_frame.grid_columnconfigure((0, 1), weight=1)
+
+        save_button = ctk.CTkButton(button_frame, text="Guardar Cambios", width=140,
+                                    command=lambda: self._save_edited_transaction(dialog, transaction.id, type_combo, quantity_entry,
+                                                                                  price_entry, date_entry, fees_entry, notes_entry))
+        save_button.grid(row=0, column=0, padx=10)
+
+        cancel_button = ctk.CTkButton(button_frame, text="Cancelar", width=100, fg_color="gray", command=dialog.destroy)
+        cancel_button.grid(row=0, column=1, padx=10)
+
+        quantity_entry.focus() # Poner foco en el primer campo editable
+
+    # --- Lógica para guardar los cambios de una transacción editada (con corrección de tipo) ---
+    def _save_edited_transaction(self, dialog, transaction_id, type_combo, quantity_entry,
+                                 price_entry, date_entry, fees_entry, notes_entry):
+        logging.info(f"--- Iniciando _save_edited_transaction para ID: {transaction_id} ---")
+
+        # --- Obtener Datos Editados ---
+        tx_type_str = type_combo.get() # <-- Obtendrá "Compra" o "Venta"
+        quantity_str = quantity_entry.get().strip().replace(',', '.')
+        price_str = price_entry.get().strip().replace(',', '.')
+        date_str = date_entry.get().strip()
+        fees_str = fees_entry.get().strip().replace(',', '.')
+        notes = notes_entry.get().strip()
+        logging.info(f"Datos editados obtenidos: T={tx_type_str}, Q={quantity_str}, P={price_str}, D={date_str}, F={fees_str}")
+
+        # --- Validación (similar a añadir, pero sin validar símbolo/activo) ---
+        if not all([tx_type_str, quantity_str, price_str, date_str, fees_str]):
+            logging.warning("Validación fallida (edit): Campos obligatorios.")
+            CTkMessagebox(title="Error de Validación", message="Todos los campos excepto Notas son obligatorios.", icon="warning")
+            return
+
+        # Tipo (Validar contra "Compra" y "Venta")
+        try:
+            if tx_type_str == "Compra": tx_type_enum = models.TransactionType.BUY
+            elif tx_type_str == "Venta": tx_type_enum = models.TransactionType.SELL
+            else: raise ValueError("Tipo de transacción inválido.")
+        except ValueError as e:
+             logging.warning(f"Validación fallida (edit): Tipo - {e}")
+             CTkMessagebox(title="Error de Validación", message=str(e), icon="warning")
+             return
+
+        # Cantidad
+        try:
+            quantity_dec = Decimal(quantity_str)
+            if quantity_dec <= crud.ZERO_TOLERANCE: raise ValueError("La cantidad debe ser mayor que cero.")
+        except InvalidOperation:
+            logging.warning("Validación fallida (edit): Cantidad - InvalidOperation")
+            CTkMessagebox(title="Error de Validación", message="Valor inválido para Cantidad.", icon="warning")
+            return
+        except ValueError as e:
+            logging.warning(f"Validación fallida (edit): Cantidad - {e}")
+            CTkMessagebox(title="Error de Validación", message=str(e), icon="warning")
+            return
+
+        # Precio
+        try:
+            price_dec = Decimal(price_str)
+            if price_dec < 0: raise ValueError("El precio no puede ser negativo.")
+        except InvalidOperation:
+            logging.warning("Validación fallida (edit): Precio - InvalidOperation")
+            CTkMessagebox(title="Error de Validación", message="Valor inválido para Precio Unitario.", icon="warning")
+            return
+        except ValueError as e:
+            logging.warning(f"Validación fallida (edit): Precio - {e}")
+            CTkMessagebox(title="Error de Validación", message=str(e), icon="warning")
+            return
+
+        # Comisión
+        try:
+            fees_dec = Decimal(fees_str)
+            if fees_dec < 0: raise ValueError("La comisión no puede ser negativa.")
+        except InvalidOperation:
+            logging.warning("Validación fallida (edit): Comisión - InvalidOperation")
+            CTkMessagebox(title="Error de Validación", message="Valor inválido para Comisión.", icon="warning")
+            return
+        except ValueError as e:
+            logging.warning(f"Validación fallida (edit): Comisión - {e}")
+            CTkMessagebox(title="Error de Validación", message=str(e), icon="warning")
+            return
+
+        # Fecha
+        date_obj = None
+        supported_formats = ['%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d']
+        for fmt in supported_formats:
+            try: date_obj = datetime.strptime(date_str, fmt); break
+            except ValueError: continue
+        if date_obj is None:
+            logging.warning("Validación fallida (edit): Fecha - Formato inválido")
+            CTkMessagebox(title="Error de Validación", message=f"Formato de fecha inválido. Usa YYYY-MM-DD HH:MM o YYYY-MM-DD.", icon="warning")
+            return
+
+        logging.info(f"Datos editados validados: T={tx_type_enum}, Q={quantity_dec}, P={price_dec}, D={date_obj}, F={fees_dec}")
+
+        # --- Preparar Diccionario de Actualizaciones ---
+        updates = {
+            "transaction_type": tx_type_enum,
+            "quantity": quantity_dec,
+            "price_per_unit": price_dec,
+            "transaction_date": date_obj,
+            "fees": fees_dec,
+            "notes": notes if notes else None
+        }
+
+        # --- Actualizar Transacción en la Base de Datos ---
+        try:
+            logging.info(f"--- Llamando a crud.update_transaction para ID: {transaction_id} ---")
+            updated_transaction = crud.update_transaction(
+                db=self.db,
+                transaction_id=transaction_id,
+                owner_id=self.current_user.id,
+                updates=updates
+            )
+
+            if updated_transaction:
+                 logging.info(f"--- crud.update_transaction retornó éxito para ID {transaction_id} ---")
+                 CTkMessagebox(title="Éxito", message="Transacción actualizada correctamente.", icon="check")
+                 dialog.destroy()
+                 self.update_transactions_frame()
+                 self.update_portfolio_frame()
+            else:
+                 # Esto podría ocurrir si update_transaction retorna None (ej. no encontrada, aunque ya la buscamos antes)
+                 logging.error(f"--- crud.update_transaction retornó None/Falsy para ID {transaction_id} ---")
+                 CTkMessagebox(title="Error", message="No se pudo actualizar la transacción (posiblemente no encontrada).", icon="cancel")
+
+        except ValueError as ve: # Errores de validación desde CRUD (menos probable aquí)
+            logging.error(f"Error de valor al actualizar transacción ID {transaction_id}: {ve}")
+            CTkMessagebox(title="Error al Guardar", message=f"Error: {ve}", icon="cancel")
+        except Exception as e: # Otros errores inesperados (ej. DB)
+            logging.error(f"Error inesperado al actualizar transacción ID {transaction_id}: {e}", exc_info=True)
+            CTkMessagebox(title="Error Inesperado", message=f"Ocurrió un error inesperado al guardar los cambios:\n{e}", icon="cancel")
+        logging.info(f"--- Fin _save_edited_transaction para ID: {transaction_id} ---")
+
 
     def delete_transaction_confirm(self):
         # Pide confirmación y elimina la transacción seleccionada
         if not self.current_user or self.selected_transaction_id is None:
-            # CORREGIDO: Eliminado parent=self
             CTkMessagebox(title="Aviso", message="Por favor, selecciona una transacción de la tabla para eliminar.", icon="warning")
             return
 
         # Mostrar diálogo de confirmación
-        # CORREGIDO: Eliminado parent=self
         confirm = CTkMessagebox(title="Confirmar Eliminación",
                                 message=f"¿Estás seguro de que quieres eliminar la transacción con ID {self.selected_transaction_id}?\nEsta acción no se puede deshacer.",
                                 icon="warning", option_1="Cancelar", option_2="Eliminar")
@@ -663,25 +843,23 @@ class PortfolioApp(ctk.CTk):
                 success = crud.delete_transaction(self.db, transaction_id=self.selected_transaction_id, user_id=self.current_user.id)
                 if success:
                     logging.info(f"Transacción ID: {self.selected_transaction_id} eliminada.")
-                    # CORREGIDO: Eliminado parent=self
                     CTkMessagebox(title="Éxito", message="Transacción eliminada correctamente.", icon="check")
                     # Resetear selección y actualizar vistas
                     self.selected_transaction_id = None
-                    self.edit_transaction_button.configure(state="disabled")
-                    self.delete_transaction_button.configure(state="disabled")
+                    # Asegurarse que los botones existen antes de configurarlos
+                    if hasattr(self, 'edit_transaction_button'): self.edit_transaction_button.configure(state="disabled")
+                    if hasattr(self, 'delete_transaction_button'): self.delete_transaction_button.configure(state="disabled")
                     self.update_transactions_frame()
                     self.update_portfolio_frame()
                 else:
                     # Si delete_transaction retorna False (no encontrada o sin permiso)
                     logging.warning(f"No se pudo eliminar transacción ID: {self.selected_transaction_id}. No encontrada o sin permiso.")
-                    # CORREGIDO: Eliminado parent=self
                     CTkMessagebox(title="Error", message="No se pudo eliminar la transacción. Puede que ya no exista o no tengas permiso.", icon="cancel")
                     # Actualizar la tabla por si acaso el estado cambió
                     self.update_transactions_frame()
             except Exception as e:
                 # Error inesperado durante la eliminación
                 logging.error(f"Error al eliminar transacción ID {self.selected_transaction_id}: {e}", exc_info=True)
-                # CORREGIDO: Eliminado parent=self
                 CTkMessagebox(title="Error", message=f"Ocurrió un error al intentar eliminar la transacción:\n{e}", icon="cancel")
 
 
@@ -718,7 +896,6 @@ class PortfolioApp(ctk.CTk):
 
         # Botón informativo para registro (funcionalidad no implementada en GUI)
         def show_register_info():
-            # CORREGIDO: Eliminado parent=self
             CTkMessagebox(title="Registro", message="La función de registro aún no está implementada en la GUI.\nPor favor, usa la versión de consola o script para registrar nuevos usuarios.", icon="info")
 
         register_button = ctk.CTkButton(login_container, text="Registrar (Info)", command=show_register_info, width=150, fg_color="gray")
@@ -736,7 +913,6 @@ class PortfolioApp(ctk.CTk):
         password = password_entry.get() # No quitar espacios de la contraseña
 
         if not username or not password:
-            # CORREGIDO: Eliminado parent=self
             CTkMessagebox(title="Error de Validación", message="El nombre de usuario y la contraseña no pueden estar vacíos.", icon="warning")
             return
 
@@ -761,13 +937,11 @@ class PortfolioApp(ctk.CTk):
                      # Otro AttributeError inesperado
                      logging.error(f"AttributeError inesperado durante la verificación de contraseña: {ae}", exc_info=True)
                      login_ok = False
-                     # CORREGIDO: Eliminado parent=self
                      CTkMessagebox(title="Error Interno", message="Ocurrió un error interno al verificar la contraseña.", icon="cancel")
             except Exception as e:
                 # Otros errores durante la verificación
                 logging.error(f"Error inesperado durante verify_password: {e}", exc_info=True)
                 login_ok = False
-                # CORREGIDO: Eliminado parent=self
                 CTkMessagebox(title="Error Interno", message="Ocurrió un error inesperado durante el proceso de login.", icon="cancel")
 
         if login_ok:
@@ -788,10 +962,8 @@ class PortfolioApp(ctk.CTk):
             # --- Login Fallido ---
             logging.warning(f"Intento de login fallido para usuario '{username}'.")
             if user: # Si el usuario existe pero la contraseña es incorrecta
-                # CORREGIDO: Eliminado parent=self
                 CTkMessagebox(title="Error de Login", message="Nombre de usuario o contraseña incorrectos.", icon="cancel")
             elif not user and username: # Si el usuario no existe
-                # CORREGIDO: Eliminado parent=self
                 CTkMessagebox(title="Error de Login", message=f"El usuario '{username}' no existe.", icon="cancel")
             # Limpiar solo contraseña y mantener foco en usuario
             password_entry.delete(0, "end")
@@ -815,7 +987,6 @@ def run_gui():
             # Intentar mostrar un mensaje de error gráfico si tkinter aún funciona
             root_error = ctk.CTk()
             root_error.withdraw() # Ocultar la ventana raíz vacía
-            # CORREGIDO: Eliminado parent=... (no aplica aquí de todas formas)
             CTkMessagebox(title="Error Fatal",
                           message=f"Error crítico irrecuperable:\n{e}\n\nLa aplicación se cerrará.",
                           icon="cancel")
